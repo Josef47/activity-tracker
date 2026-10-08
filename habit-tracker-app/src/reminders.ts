@@ -13,8 +13,10 @@ export const MARK_DONE_ACTION = 'mark-done';
 // daily trigger) so a habit you've already checked off today doesn't nag you.
 // They are rebuilt every time the app opens or a habit changes.
 const DAYS_AHEAD = 14;
-// iOS keeps at most 64 pending local notifications per app.
-const MAX_PENDING = 60;
+// iOS keeps at most 64 pending local notifications per app (2 are kept for the notices below).
+const MAX_PENDING = 58;
+// Warn this many days before the scheduled reminders run out.
+const WARN_DAYS_BEFORE_END = 2;
 
 export type ReminderData = { habitId: string; day: string };
 
@@ -47,13 +49,20 @@ export async function setupNotifications(): Promise<boolean> {
 
 let queue: Promise<void> = Promise.resolve();
 
-/** Cancel and rebuild all reminders. Calls are serialized so they never interleave. */
-export function rescheduleReminders(habits: Habit[], log: CompletionLog): Promise<void> {
-  queue = queue.then(() => reschedule(habits, log)).catch((e) => console.warn('Reminder scheduling failed', e));
-  return queue;
+/**
+ * Cancel and rebuild all reminders. Calls are serialized so they never interleave.
+ * Resolves to the time of the last scheduled reminder (null if none are scheduled).
+ */
+export function rescheduleReminders(habits: Habit[], log: CompletionLog): Promise<Date | null> {
+  const run = queue.then(() => reschedule(habits, log));
+  queue = run.then(
+    () => undefined,
+    (e) => console.warn('Reminder scheduling failed', e),
+  );
+  return run.catch(() => null);
 }
 
-async function reschedule(habits: Habit[], log: CompletionLog): Promise<void> {
+async function reschedule(habits: Habit[], log: CompletionLog): Promise<Date | null> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 
   const now = new Date();
@@ -69,7 +78,8 @@ async function reschedule(habits: Habit[], log: CompletionLog): Promise<void> {
   }
   pending.sort((a, b) => a.when.getTime() - b.when.getTime());
 
-  for (const { habit, when, day } of pending.slice(0, MAX_PENDING)) {
+  const scheduled = pending.slice(0, MAX_PENDING);
+  for (const { habit, when, day } of scheduled) {
     const data: ReminderData = { habitId: habit.id, day };
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -81,4 +91,36 @@ async function reschedule(habits: Habit[], log: CompletionLog): Promise<void> {
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId: CHANNEL_ID },
     });
   }
+
+  const last = scheduled.at(-1)?.when ?? null;
+  if (last) await scheduleRunningOutNotices(last, now);
+  return last;
+}
+
+// These only fire if the app isn't opened before reminders run out: opening the app
+// reschedules everything, including these notices, further into the future.
+async function scheduleRunningOutNotices(last: Date, now: Date): Promise<void> {
+  const notices = [
+    {
+      when: addDays(last, -WARN_DAYS_BEFORE_END),
+      title: 'Your reminders end soon',
+      body: `Habits plans reminders two weeks ahead. Open the app to keep them coming after ${formatDay(last)}.`,
+    },
+    {
+      when: new Date(last.getTime() + 60 * 1000),
+      title: 'Your reminders have stopped',
+      body: "Habits hasn't been opened in a while, so no more reminders are scheduled. Open the app to turn them back on.",
+    },
+  ];
+  for (const { when, title, body } of notices) {
+    if (when <= now) continue;
+    await Notifications.scheduleNotificationAsync({
+      content: { title, body },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId: CHANNEL_ID },
+    });
+  }
+}
+
+export function formatDay(d: Date): string {
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }

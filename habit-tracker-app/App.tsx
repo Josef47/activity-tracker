@@ -7,7 +7,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { HabitEditor } from './src/HabitEditor';
 import { HabitRow } from './src/HabitRow';
 import { dateKey } from './src/dates';
-import { MARK_DONE_ACTION, ReminderData, rescheduleReminders, setupNotifications } from './src/reminders';
+import { formatDay, MARK_DONE_ACTION, ReminderData, rescheduleReminders, setupNotifications } from './src/reminders';
 import { isDone, loadHabits, loadLog, saveHabits, saveLog, setDone } from './src/storage';
 import { colors } from './src/theme';
 import type { CompletionLog, Habit } from './src/types';
@@ -18,6 +18,7 @@ export default function App() {
   const [editing, setEditing] = useState<{ habit: Habit; isNew: boolean } | null>(null);
   const [notificationsAllowed, setNotificationsAllowed] = useState(true);
   const [today, setToday] = useState(dateKey());
+  const [remindersUntil, setRemindersUntil] = useState<Date | null>(null);
 
   // Initial load.
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function App() {
     if (!habits) return;
     saveHabits(habits);
     saveLog(log);
-    rescheduleReminders(habits, log);
+    rescheduleReminders(habits, log).then(setRemindersUntil);
   }, [habits, log]);
 
   // Refresh "today" (and reminders) when the app comes back to the foreground.
@@ -44,7 +45,9 @@ export default function App() {
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
       setToday(dateKey());
-      if (latest.current.habits) rescheduleReminders(latest.current.habits, latest.current.log);
+      if (latest.current.habits) {
+        rescheduleReminders(latest.current.habits, latest.current.log).then(setRemindersUntil);
+      }
     });
     return () => sub.remove();
   }, []);
@@ -128,6 +131,12 @@ export default function App() {
             <Text style={styles.addText}>＋ Add habit</Text>
           </Pressable>
           <Text style={styles.hint}>Tap a habit to check it off · long-press or ••• to edit</Text>
+          {notificationsAllowed && remindersUntil && (
+            <Text style={styles.hint}>
+              ⏰ Reminders are planned up to {formatDay(remindersUntil)}. Open the app at least once every two weeks
+              to keep them coming. You'll get a heads-up before they run out.
+            </Text>
+          )}
         </ScrollView>
 
         <HabitEditor

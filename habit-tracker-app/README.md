@@ -42,7 +42,15 @@ npx eas-cli@latest build --platform ios --profile preview       # needs an Apple
 
 ## How reminders work
 
-Reminders are scheduled as one-off notifications for the next 14 days and rebuilt each time you open the app or change a habit. That way any habit you've already done is skipped. If you don't open the app for more than two weeks, the reminders run out until you open it again.
+Reminders are scheduled as one-off notifications for the next 14 days and rebuilt each time you open the app or change a habit. That way any habit you've already done is skipped.
+
+So you're never left wondering why reminders stopped:
+
+- The main screen shows the date reminders are planned up to.
+- **2 days before they run out**, you get a "Your reminders end soon" notification.
+- If you still haven't opened the app, a final **"Your reminders have stopped"** notification explains why and asks you to open the app.
+
+Opening the app at any point pushes all of this two weeks further out, so if you use the app regularly you'll never see these notices.
 
 ## Project layout
 
