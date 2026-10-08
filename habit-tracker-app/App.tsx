@@ -7,7 +7,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { HabitEditor } from './src/HabitEditor';
 import { HabitRow } from './src/HabitRow';
 import { dateKey } from './src/dates';
-import { formatDay, MARK_DONE_ACTION, ReminderData, rescheduleReminders, setupNotifications } from './src/reminders';
+import { dismissHabitNotifications, formatDay, MARK_DONE_ACTION, ReminderData, rescheduleReminders, setupNotifications } from './src/reminders';
 import { isDone, loadHabits, loadLog, saveHabits, saveLog, setDone } from './src/storage';
 import { colors } from './src/theme';
 import type { CompletionLog, Habit } from './src/types';
@@ -56,8 +56,9 @@ export default function App() {
   const handleResponse = useCallback((response: Notifications.NotificationResponse | null) => {
     if (!response || response.actionIdentifier !== MARK_DONE_ACTION) return;
     const { habitId, day } = response.notification.request.content.data as ReminderData;
-    if (habitId && day) setLog((l) => setDone(l, habitId, day, true));
-    Notifications.dismissNotificationAsync(response.notification.request.identifier);
+    if (!habitId || !day) return;
+    setLog((l) => setDone(l, habitId, day, true));
+    dismissHabitNotifications(habitId, day);
   }, []);
   useEffect(() => {
     if (!loaded) return;
@@ -77,7 +78,11 @@ export default function App() {
     );
   }
 
-  const toggle = (id: string) => setLog((l) => setDone(l, id, today, !isDone(l, id, today)));
+  const toggle = (id: string) => {
+    const done = !isDone(log, id, today);
+    setLog((l) => setDone(l, id, today, done));
+    if (done) dismissHabitNotifications(id, today);
+  };
   const saveHabit = (habit: Habit) => {
     setHabits((hs) => (hs!.some((h) => h.id === habit.id) ? hs!.map((h) => (h.id === habit.id ? habit : h)) : [...hs!, habit]));
     setEditing(null);
@@ -89,7 +94,7 @@ export default function App() {
   const newHabit = () =>
     setEditing({
       isNew: true,
-      habit: { id: String(Date.now()), name: '', emoji: '✅', hour: 9, minute: 0, remindersOn: true },
+      habit: { id: String(Date.now()), name: '', emoji: '✅', hour: 9, minute: 0, remindersOn: true, nag: false },
     });
 
   const sorted = [...habits].sort((a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute));

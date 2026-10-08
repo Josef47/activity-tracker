@@ -6,6 +6,8 @@ export type Habit = {
   hour: number;
   minute: number;
   remindersOn: boolean;
+  /** Keep sending follow-up reminders every few minutes until the habit is checked off. */
+  nag: boolean;
 };
 
 /** Date key (YYYY-MM-DD, local time) -> ids of habits completed that day. */

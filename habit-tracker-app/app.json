@@ -8,7 +8,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.josef47.habits"
+      "bundleIdentifier": "com.josef47.habits",
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +29,11 @@
     "plugins": [
       [
         "expo-notifications",
-        {}
+        {
+          "sounds": [
+            "./assets/sounds/alarm.wav"
+          ]
+        }
       ]
     ]
   }

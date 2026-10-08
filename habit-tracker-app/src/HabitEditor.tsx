@@ -3,6 +3,7 @@ import { Alert, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { formatTime } from './dates';
+import { FOLLOW_UP_EVERY_MINUTES, QUIET_FOLLOW_UPS } from './reminders';
 import { colors } from './theme';
 import type { Habit } from './types';
 
@@ -88,6 +89,21 @@ export function HabitEditor({ habit, isNew, onSave, onDelete, onClose }: Props) 
           <Stepper label="+1h" onPress={() => shiftTime(60)} />
         </View>
 
+        <View style={[styles.switchRow, !draft.remindersOn && styles.disabled]}>
+          <View style={styles.switchText}>
+            <Text style={styles.switchLabel}>Keep reminding until done</Text>
+            <Text style={styles.switchHint}>
+              If you're late, remind again every {FOLLOW_UP_EVERY_MINUTES} min. After {QUIET_FOLLOW_UPS} reminders it
+              plays a loud alarm.
+            </Text>
+          </View>
+          <Switch
+            value={draft.nag}
+            disabled={!draft.remindersOn}
+            onValueChange={(nag) => update({ nag })}
+          />
+        </View>
+
         {!isNew && (
           <Pressable onPress={confirmDelete} style={styles.delete}>
             <Text style={styles.deleteText}>Delete habit</Text>
@@ -134,6 +150,8 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   switchLabel: { fontSize: 17, color: colors.text },
+  switchText: { flex: 1, marginRight: 12 },
+  switchHint: { fontSize: 13, color: colors.muted, marginTop: 4 },
   timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
   disabled: { opacity: 0.35 },
   time: { fontSize: 36, fontWeight: '600', color: colors.text, fontVariant: ['tabular-nums'] },

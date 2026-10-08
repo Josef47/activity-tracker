@@ -7,14 +7,16 @@ const HABITS_KEY = 'habits:v1';
 const LOG_KEY = 'log:v1';
 
 export const DEFAULT_HABITS: Habit[] = [
-  { id: 'pills-morning', name: 'Morning pills', emoji: '💊', hour: 8, minute: 0, remindersOn: true },
-  { id: 'pills-evening', name: 'Evening pills', emoji: '💊', hour: 20, minute: 0, remindersOn: true },
-  { id: 'floss', name: 'Floss', emoji: '🦷', hour: 21, minute: 30, remindersOn: true },
+  { id: 'pills-morning', name: 'Morning pills', emoji: '💊', hour: 8, minute: 0, remindersOn: true, nag: true },
+  { id: 'pills-evening', name: 'Evening pills', emoji: '💊', hour: 20, minute: 0, remindersOn: true, nag: true },
+  { id: 'floss', name: 'Floss', emoji: '🦷', hour: 21, minute: 30, remindersOn: true, nag: false },
 ];
 
 export async function loadHabits(): Promise<Habit[]> {
   const raw = await AsyncStorage.getItem(HABITS_KEY);
-  return raw ? JSON.parse(raw) : DEFAULT_HABITS;
+  if (!raw) return DEFAULT_HABITS;
+  // Habits saved before follow-up reminders existed: turn them on for pills.
+  return (JSON.parse(raw) as Habit[]).map((h) => ({ ...h, nag: h.nag ?? h.emoji === '💊' }));
 }
 
 export async function saveHabits(habits: Habit[]): Promise<void> {
